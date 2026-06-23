@@ -63,6 +63,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         # ``.kiro/specs/transcript-audio-extract-and-ui`` Requirement 1.
         "upload_audio_only": True,
     },
+    "urls_file_path": [],  # 从文件批量读取链接（每行一个 URL），支持多个文件
     "auto_cookie": False,
     "browser_fallback": {
         "enabled": True,

@@ -70,6 +70,7 @@ class LiveDownloader(BaseDownloader):
         if not info:
             logger.error("Live room not available or fetch failed: %s", room_id)
             result.failed += 1
+            result.failed_items.append(f"https://live.douyin.com/{room_id}")
             self._progress_advance_item("failed", str(room_id))
             return result
 
@@ -88,6 +89,7 @@ class LiveDownloader(BaseDownloader):
         if not stream_url:
             logger.error("No playable live stream URL for room %s", room_id)
             result.failed += 1
+            result.failed_items.append(f"https://live.douyin.com/{room_id}")
             self._progress_advance_item("failed", str(room_id))
             return result
 
@@ -139,6 +141,7 @@ class LiveDownloader(BaseDownloader):
             logger.info("Live recording finished: %s", target_path)
         else:
             result.failed += 1
+            result.failed_items.append(f"https://live.douyin.com/{room_id}")
             self._progress_advance_item("failed", str(room_id))
 
         return result

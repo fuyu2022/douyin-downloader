@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from core.downloader_base import BaseDownloader, DownloadResult
+from core.downloader_base import BaseDownloader, DownloadResult, _make_failed_item_url
 from utils.logger import setup_logger
 
 logger = setup_logger("VideoDownloader")
@@ -31,6 +31,7 @@ class VideoDownloader(BaseDownloader):
         if not aweme_data:
             logger.error("Failed to get video detail: %s", aweme_id)
             result.failed += 1
+            result.failed_items.append(_make_failed_item_url(aweme_id, "", "video"))
             self._progress_advance_item("failed", str(aweme_id))
             return result
 
@@ -40,6 +41,9 @@ class VideoDownloader(BaseDownloader):
             self._progress_advance_item("success", str(aweme_id))
         else:
             result.failed += 1
+            desc = (aweme_data.get("desc") or "").strip()
+            media_type = self._detect_media_type(aweme_data)
+            result.failed_items.append(_make_failed_item_url(aweme_id, desc, media_type))
             self._progress_advance_item("failed", str(aweme_id))
 
         return result

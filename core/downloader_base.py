@@ -38,9 +38,21 @@ class DownloadResult:
         self.success = 0
         self.failed = 0
         self.skipped = 0
+        self.failed_items: List[str] = []  # 失败作品的视频链接（含标题）
 
     def __str__(self):
         return f"Total: {self.total}, Success: {self.success}, Failed: {self.failed}, Skipped: {self.skipped}"
+
+
+def _make_failed_item_url(aweme_id: str, desc: str = "", aweme_type: str = "video") -> str:
+    """构造失败作品的链接字符串，用于 error.txt 输出。"""
+    if aweme_type == "gallery":
+        url = f"https://www.douyin.com/note/{aweme_id}"
+    else:
+        url = f"https://www.douyin.com/video/{aweme_id}"
+    if desc:
+        return f"{url}  |  {desc}"
+    return url
 
 
 class BaseDownloader(ABC):

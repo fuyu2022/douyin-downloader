@@ -30,6 +30,26 @@ def _as_bool(value: Any, default: bool = True) -> bool:
     return bool(value)
 
 
+def _read_url_file(path: str) -> list:
+    """从文本文件读取链接，每行一个，忽略空行和 # 开头的注释行，文件内自动去重。"""
+    seen = set()
+    urls = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if stripped in seen:
+                    continue
+                seen.add(stripped)
+                urls.append(stripped)
+    except OSError as exc:
+        display.print_error(f"Failed to read URL file {path}: {exc}")
+        sys.exit(1)
+    return urls
+
+
 async def download_url(
     url: str,
     config: ConfigLoader,
@@ -185,6 +205,35 @@ async def main_async(args):
             if url not in config.get("link", []):
                 config.update(link=config.get("link", []) + [url])
 
+    if args.url_file:
+        file_urls = _read_url_file(args.url_file)
+        for url in file_urls:
+            if url not in config.get("link", []):
+                config.update(link=config.get("link", []) + [url])
+        if file_urls:
+            display.print_info(f"Read {len(file_urls)} URL(s) from {args.url_file}")
+
+    if config.get("urls_file_path"):
+        config_path_obj = Path(config.config_path) if config.config_path else Path.cwd()
+        raw = config.get("urls_file_path")
+        if isinstance(raw, str):
+            file_list = [raw]
+        elif isinstance(raw, list):
+            file_list = [str(f).strip() for f in raw if str(f).strip()]
+        else:
+            file_list = []
+        for src in file_list:
+            resolved = str(config_path_obj.parent / src) if not Path(src).is_absolute() else src
+            if Path(resolved).exists():
+                cf_urls = _read_url_file(resolved)
+                for url in cf_urls:
+                    if url not in config.get("link", []):
+                        config.update(link=config.get("link", []) + [url])
+                if cf_urls:
+                    display.print_info(f"Read {len(cf_urls)} URL(s) from {resolved}")
+            else:
+                display.print_warning(f"urls_file_path 指定的文件不存在: {resolved}")
+
     if args.thread:
         config.update(thread=args.thread)
 
@@ -251,6 +300,20 @@ async def main_async(args):
             total_result.success += r.success
             total_result.failed += r.failed
             total_result.skipped += r.skipped
+            total_result.failed_items.extend(r.failed_items)
+
+        if total_result.failed_items:
+            error_path = Path(config.get("path") or ".") / "error.txt"
+            try:
+                error_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(error_path, "w", encoding="utf-8") as f:
+                    for line in total_result.failed_items:
+                        f.write(line + "\n")
+                display.print_warning(
+                    f"失败作品链接已写入 {error_path}（共 {len(total_result.failed_items)} 条）"
+                )
+            except OSError as exc:
+                logger.warning("Failed to write error.txt: %s", exc)
 
         display.print_success("\n=== Overall Summary ===")
         display.show_result(total_result)
@@ -338,6 +401,7 @@ def main():
     parser = argparse.ArgumentParser(description="Douyin Downloader - 抖音批量下载工具")
     parser.add_argument("-u", "--url", action="append", help="Download URL(s)")
     parser.add_argument("-c", "--config", help="Config file path (default: config.yml)")
+    parser.add_argument("-f", "--url-file", help="Text file with one URL per line")
     parser.add_argument("-p", "--path", help="Save path")
     parser.add_argument("-t", "--thread", type=int, help="Thread count")
     parser.add_argument("--show-warnings", action="store_true", help="Show warning logs in console")

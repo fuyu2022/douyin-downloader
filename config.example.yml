@@ -3,6 +3,11 @@ link:
 
 path: ./Downloaded/
 
+# 可选：从文本文件批量读取链接（每行一个 URL），支持多个文件，与 link 合并后去重
+urls_file_path:
+  - urls.txt
+  - authors.txt
+
 music: true
 cover: true
 avatar: true

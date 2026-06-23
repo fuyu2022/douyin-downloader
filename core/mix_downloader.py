@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from core.downloader_base import BaseDownloader, DownloadResult
+from core.downloader_base import BaseDownloader, DownloadResult, _make_failed_item_url
 from core.user_modes.base_strategy import BaseUserModeStrategy
 from utils.logger import setup_logger
 
@@ -44,13 +44,24 @@ class MixDownloader(BaseDownloader):
             success = await self._download_aweme_assets(item, author_name, mode="mix")
             status = "success" if success else "failed"
             self._progress_advance_item(status, str(aweme_id))
-            return {"status": status, "aweme_id": aweme_id}
+            entry = {"status": status, "aweme_id": aweme_id}
+            if status == "failed":
+                entry["desc"] = (item.get("desc") or "").strip()
+                entry["aweme_type"] = self._detect_media_type(item)
+            return entry
 
         download_results = await self.queue_manager.download_batch(_process_aweme, aweme_list)
         for entry in download_results:
             status = entry.get("status") if isinstance(entry, dict) else None
             if status == "success":
                 result.success += 1
+            elif status == "failed":
+                result.failed += 1
+                aweme_id = str(entry.get("aweme_id") or "")
+                desc = str(entry.get("desc") or "")
+                aweme_type = str(entry.get("aweme_type") or "video")
+                if aweme_id:
+                    result.failed_items.append(_make_failed_item_url(aweme_id, desc, aweme_type))
             elif status == "skipped":
                 result.skipped += 1
             else:

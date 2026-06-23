@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-from core.downloader_base import BaseDownloader, DownloadResult
+from core.downloader_base import BaseDownloader, DownloadResult, _make_failed_item_url
 from core.metadata import extract_author_sec_uid
 from utils.logger import setup_logger
 from utils.naming import (
@@ -41,29 +41,34 @@ class MusicDownloader(BaseDownloader):
                 self._progress_advance_item("success", str(music_id))
             else:
                 result.failed += 1
+                result.failed_items.append(f"https://www.douyin.com/music/{music_id}")
                 self._progress_advance_item("failed", str(music_id))
             return result
 
         # 回退：音乐详情无法直接拿到音频链接时，尝试下载该音乐下的首条作品
         aweme = await self._get_first_music_aweme(str(music_id))
         if aweme and aweme.get("aweme_id"):
-            if not await self._should_download(str(aweme.get("aweme_id"))):
+            aweme_id = str(aweme.get("aweme_id"))
+            if not await self._should_download(aweme_id):
                 result.skipped += 1
-                self._progress_advance_item("skipped", str(aweme.get("aweme_id")))
+                self._progress_advance_item("skipped", aweme_id)
                 return result
 
             aweme_author = (aweme.get("author") or {}).get("nickname", "music")
             success = await self._download_aweme_assets(aweme, aweme_author, mode="music")
             if success:
                 result.success += 1
-                self._progress_advance_item("success", str(aweme.get("aweme_id")))
+                self._progress_advance_item("success", aweme_id)
             else:
                 result.failed += 1
-                self._progress_advance_item("failed", str(aweme.get("aweme_id")))
+                desc = (aweme.get("desc") or "").strip()
+                result.failed_items.append(_make_failed_item_url(aweme_id, desc, "video"))
+                self._progress_advance_item("failed", aweme_id)
             return result
 
         logger.error("No playable music source found for music_id=%s", music_id)
         result.failed += 1
+        result.failed_items.append(f"https://www.douyin.com/music/{music_id}")
         self._progress_advance_item("failed", str(music_id))
         return result
 

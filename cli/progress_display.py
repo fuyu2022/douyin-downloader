@@ -33,6 +33,7 @@ class ProgressDisplay:
         self._item_completed = 0
         self._single_url_item_mode = False
         self._item_stats = {"success": 0, "failed": 0, "skipped": 0}
+        self._total_stats = {"success": 0, "failed": 0, "skipped": 0}
 
     def show_banner(self):
         banner = """
@@ -63,6 +64,7 @@ class ProgressDisplay:
         self._progress_ctx = self.create_progress()
         self._progress = self._progress_ctx.__enter__()
         self._single_url_item_mode = False
+        self._total_stats = {"success": 0, "failed": 0, "skipped": 0}
         self._overall_task_id = self._progress.add_task(
             "总体进度",
             total=max(total_urls, 1),
@@ -105,6 +107,9 @@ class ProgressDisplay:
             detail = ""
             if result:
                 detail = f"成功 {result.success} / 失败 {result.failed} / 跳过 {result.skipped}"
+                self._total_stats["success"] += result.success
+                self._total_stats["failed"] += result.failed
+                self._total_stats["skipped"] += result.skipped
             self._progress.update(
                 self._url_task_id,
                 completed=self._URL_STEP_TOTAL,
@@ -117,6 +122,7 @@ class ProgressDisplay:
                 self._progress.update(self._overall_task_id, completed=self._item_total or 1)
             else:
                 self._progress.advance(self._overall_task_id, 1)
+            self._update_overall_detail()
 
     def fail_url(self, reason: str):
         if self._progress and self._url_task_id is not None:
@@ -132,6 +138,16 @@ class ProgressDisplay:
                 self._progress.update(self._overall_task_id, completed=self._item_total or 1)
             else:
                 self._progress.advance(self._overall_task_id, 1)
+            self._update_overall_detail()
+
+    def _update_overall_detail(self):
+        """刷新总体进度条的累计成功/失败/跳过计数。"""
+        if self._progress and self._overall_task_id is not None:
+            t = self._total_stats
+            self._progress.update(
+                self._overall_task_id,
+                detail=f"成功 {t['success']} | 失败 {t['failed']} | 跳过 {t['skipped']}",
+            )
 
     def advance_step(self, step: str, detail: str = ""):
         if not self._progress or self._url_task_id is None:

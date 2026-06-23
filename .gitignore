@@ -51,3 +51,4 @@ config/cookies.json
 .vscode/
 .omc/
 .gstack/
+*.txt
